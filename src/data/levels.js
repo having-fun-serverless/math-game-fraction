@@ -1,5 +1,5 @@
-export const QPL = 5;
-export const PASS = 4;
+export const QPL = 8;
+export const PASS = 6;
 
 export const LEVELS = [
   {
