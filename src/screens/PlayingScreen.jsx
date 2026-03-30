@@ -1,11 +1,13 @@
 import { QPL, PASS } from '../data/levels'
 import CharacterSVG from '../components/CharacterSVG'
 import HonmoonShield from '../components/HonmoonShield'
+import CorrectAnswerAnimation from '../components/CorrectAnswerAnimation'
 
 export default function PlayingScreen({
   char, level, currentQ, questionIdx, score, streak,
   feedback, shakeWrong, charState, danceIdx,
   input, onInput, onSubmit, onKeyDown, onBack, inputRef,
+  waitingForNext, onNext,
 }) {
   return (
     <div style={{ animation: "slideIn 0.3s ease" }}>
@@ -43,28 +45,43 @@ export default function PlayingScreen({
         <div style={{ fontSize: 28, fontWeight: 900, color: "#fff", marginBottom: 24, fontFamily: "'Secular One'", direction: "ltr", letterSpacing: "1px", textShadow: `0 0 20px ${level.color}44` }}>
           {currentQ.q}
         </div>
-        <div style={{ display: "flex", gap: 10, maxWidth: 300, margin: "0 auto" }}>
-          <input
-            ref={inputRef}
-            type="text"
-            inputMode="decimal"
-            value={input}
-            onChange={e => onInput(e.target.value)}
-            onKeyDown={onKeyDown}
-            disabled={!!feedback}
-            placeholder="תשובה..."
-            style={{ flex: 1, background: "rgba(0,0,0,0.35)", border: `2px solid ${level.color}33`, borderRadius: 14, padding: "14px 18px", color: "#fff", fontSize: 22, textAlign: "center", fontFamily: "'Secular One'", direction: "ltr", transition: "all 0.3s" }}
-          />
-          <button
-            onClick={onSubmit}
-            disabled={!!feedback || !input.trim()}
-            style={{ background: `linear-gradient(135deg,${level.color},${level.color}bb)`, border: "none", borderRadius: 14, padding: "14px 22px", color: "#000", fontWeight: 900, fontSize: 18, fontFamily: "'Secular One'", cursor: feedback || !input.trim() ? "not-allowed" : "pointer", opacity: feedback || !input.trim() ? 0.4 : 1, transition: "all 0.2s", boxShadow: `0 0 15px ${level.color}44` }}
-          >✓</button>
-        </div>
-        {feedback && (
-          <div style={{ marginTop: 16, padding: "12px 18px", borderRadius: 14, background: feedback.correct ? "rgba(0,220,100,0.1)" : "rgba(255,50,50,0.1)", border: `1px solid ${feedback.correct ? "#4ade8044" : "#ff6b6b44"}`, color: feedback.correct ? "#4ade80" : "#ff6b6b", fontSize: 17, fontWeight: 700, fontFamily: "'Heebo'", animation: "scaleIn 0.2s ease", direction: "ltr" }}>
-            {feedback.msg}
-          </div>
+
+        {!waitingForNext ? (
+          <>
+            <div style={{ display: "flex", gap: 10, maxWidth: 300, margin: "0 auto" }}>
+              <input
+                ref={inputRef}
+                type="text"
+                inputMode="decimal"
+                value={input}
+                onChange={e => onInput(e.target.value)}
+                onKeyDown={onKeyDown}
+                disabled={!!feedback}
+                placeholder="תשובה..."
+                style={{ flex: 1, background: "rgba(0,0,0,0.35)", border: `2px solid ${level.color}33`, borderRadius: 14, padding: "14px 18px", color: "#fff", fontSize: 22, textAlign: "center", fontFamily: "'Secular One'", direction: "ltr", transition: "all 0.3s" }}
+              />
+              <button
+                onClick={onSubmit}
+                disabled={!!feedback || !input.trim()}
+                style={{ background: `linear-gradient(135deg,${level.color},${level.color}bb)`, border: "none", borderRadius: 14, padding: "14px 22px", color: "#000", fontWeight: 900, fontSize: 18, fontFamily: "'Secular One'", cursor: feedback || !input.trim() ? "not-allowed" : "pointer", opacity: feedback || !input.trim() ? 0.4 : 1, transition: "all 0.2s", boxShadow: `0 0 15px ${level.color}44` }}
+              >✓</button>
+            </div>
+            {feedback && (
+              <div style={{ marginTop: 16, padding: "12px 18px", borderRadius: 14, background: feedback.correct ? "rgba(0,220,100,0.1)" : "rgba(255,50,50,0.1)", border: `1px solid ${feedback.correct ? "#4ade8044" : "#ff6b6b44"}`, color: feedback.correct ? "#4ade80" : "#ff6b6b", fontSize: 17, fontWeight: 700, fontFamily: "'Heebo'", animation: "scaleIn 0.2s ease", direction: "ltr" }}>
+                {feedback.msg}
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <CorrectAnswerAnimation currentQ={currentQ} levelId={level.id} />
+            <button
+              onClick={onNext}
+              style={{ marginTop: 16, width: "100%", maxWidth: 300, background: `linear-gradient(135deg,${level.color},${level.color}bb)`, border: "none", borderRadius: 14, padding: "14px 22px", color: "#000", fontWeight: 900, fontSize: 18, fontFamily: "'Secular One'", cursor: "pointer", boxShadow: `0 0 15px ${level.color}44`, display: "block", margin: "16px auto 0" }}
+            >
+              הבא ←
+            </button>
+          </>
         )}
       </div>
       {streak >= 3 && (
