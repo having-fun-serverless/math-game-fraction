@@ -29,6 +29,7 @@ export default function GoldenHonmoonGame() {
   const [particles, setParticles] = useState(null);
   const [charState, setCharState] = useState("idle");
   const [danceIdx, setDanceIdx] = useState(0);
+  const [waitingForNext, setWaitingForNext] = useState(false);
   const inputRef = useRef(null);
 
   const level = LEVELS[currentLevel];
@@ -53,6 +54,7 @@ export default function GoldenHonmoonGame() {
       setInput("");
       setFeedback(null);
       setCharState("idle");
+      setWaitingForNext(false);
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [currentLevel]);
@@ -72,6 +74,25 @@ export default function GoldenHonmoonGame() {
       setDanceIdx(d => d + 1);
       setCharState("dance");
       triggerParticles("success", level.color);
+      setTimeout(() => {
+        if (questionIdx + 1 >= QPL) {
+          const passed = (score + 1) >= PASS;
+          if (passed) {
+            setCompletedLevels(c => [...c, currentLevel]);
+            setShowConfetti(true);
+            audio.playFanfare();
+            triggerParticles("fanfare", "#FFD700");
+            setCharState("dance");
+            setTimeout(() => setShowConfetti(false), 4000);
+          } else {
+            audio.playLevelFail();
+            setCharState("sad");
+          }
+          setScreen(passed ? "levelComplete" : "levelFailed");
+        } else {
+          setQuestionIdx(q => q + 1);
+        }
+      }, 1400);
     } else {
       setStreak(0);
       setShakeWrong(true);
@@ -80,26 +101,29 @@ export default function GoldenHonmoonGame() {
       setFeedback({ correct: false, msg: `✗ התשובה: ${currentQ.a}` });
       setCharState("sad");
       triggerParticles("fail", "#ff4444");
+      setWaitingForNext(true);
     }
-    setTimeout(() => {
-      if (questionIdx + 1 >= QPL) {
-        const passed = (correct ? score + 1 : score) >= PASS;
-        if (passed) {
-          setCompletedLevels(c => [...c, currentLevel]);
-          setShowConfetti(true);
-          audio.playFanfare();
-          triggerParticles("fanfare", "#FFD700");
-          setCharState("dance");
-          setTimeout(() => setShowConfetti(false), 4000);
-        } else {
-          audio.playLevelFail();
-          setCharState("sad");
-        }
-        setScreen(passed ? "levelComplete" : "levelFailed");
+  };
+
+  const handleNext = () => {
+    setWaitingForNext(false);
+    if (questionIdx + 1 >= QPL) {
+      const passed = score >= PASS;
+      if (passed) {
+        setCompletedLevels(c => [...c, currentLevel]);
+        setShowConfetti(true);
+        audio.playFanfare();
+        triggerParticles("fanfare", "#FFD700");
+        setCharState("dance");
+        setTimeout(() => setShowConfetti(false), 4000);
       } else {
-        setQuestionIdx(q => q + 1);
+        audio.playLevelFail();
+        setCharState("sad");
       }
-    }, 1400);
+      setScreen(passed ? "levelComplete" : "levelFailed");
+    } else {
+      setQuestionIdx(q => q + 1);
+    }
   };
 
   const startLevel = (idx) => {
@@ -174,6 +198,8 @@ export default function GoldenHonmoonGame() {
             onKeyDown={handleKey}
             onBack={() => setScreen("menu")}
             inputRef={inputRef}
+            waitingForNext={waitingForNext}
+            onNext={handleNext}
           />
         )}
         {screen === "levelComplete" && char && (
