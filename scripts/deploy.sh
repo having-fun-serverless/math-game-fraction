@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Golden Honmoon Math Game — S3 deploy script
+# Golden Honmoon Math Game — S3 + CloudFront deploy script
 # Usage: ./scripts/deploy.sh --bucket <bucket-name> [--region <region>]
 #
 # Requirements:
@@ -52,17 +52,32 @@ echo "==> Building the app"
 cd "$REPO_ROOT"
 npm run build
 
-echo "==> Uploading dist/ to s3://$BUCKET_NAME/"
+echo "==> Uploading assets to s3://$BUCKET_NAME/ (long-term cache)"
 aws s3 sync dist/ "s3://$BUCKET_NAME/" \
   --delete \
   --region "$REGION" \
-  --cache-control "public,max-age=31536000,immutable" \
-  --exclude "index.html"
+  --exclude "index.html" \
+  --cache-control "public,max-age=31536000,immutable"
 
-# Upload index.html without long-term caching so updates are seen immediately
+echo "==> Uploading index.html (no cache)"
 aws s3 cp dist/index.html "s3://$BUCKET_NAME/index.html" \
   --region "$REGION" \
   --cache-control "no-cache,no-store,must-revalidate"
+
+echo "==> Invalidating CloudFront cache"
+DISTRIBUTION_ID=$(aws cloudformation describe-stacks \
+  --stack-name "$STACK_NAME" \
+  --region "$REGION" \
+  --query "Stacks[0].Outputs[?OutputKey=='CloudFrontDistributionId'].OutputValue" \
+  --output text)
+
+if [[ -n "$DISTRIBUTION_ID" && "$DISTRIBUTION_ID" != "None" ]]; then
+  aws cloudfront create-invalidation \
+    --distribution-id "$DISTRIBUTION_ID" \
+    --paths "/*" \
+    --region us-east-1 > /dev/null
+  echo "   Cache invalidated for distribution $DISTRIBUTION_ID"
+fi
 
 echo "==> Fetching website URL"
 WEBSITE_URL=$(aws cloudformation describe-stacks \
