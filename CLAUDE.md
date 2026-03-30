@@ -30,9 +30,9 @@ src/
   index.css       - @keyframes, Google Fonts @import, body reset, input rules
 index.html        - entry HTML; Google Fonts <link> in <head>
 infra/
-  s3-website.yaml - CloudFormation template for S3 static hosting
+  template.yaml   - SAM template for S3 + CloudFront static hosting
 scripts/
-  deploy.sh       - build + CloudFormation deploy + S3 sync
+  deploy.sh       - sam build + sam deploy + S3 sync
 ```
 
 ## Key Constants (`src/data/levels.js`)
@@ -57,23 +57,13 @@ scripts/
 
 ## Deployment to S3
 
-### 1. Create infrastructure
-
-```bash
-aws cloudformation deploy \
-  --stack-name golden-honmoon-math-site \
-  --template-file infra/s3-website.yaml \
-  --parameter-overrides BucketName=<your-unique-bucket-name> \
-  --region us-east-1
-```
-
-### 2. Build and deploy
-
 ```bash
 ./scripts/deploy.sh --bucket <your-unique-bucket-name> --region us-east-1
 ```
 
-The script builds the app, syncs `dist/` to S3, and prints the public website URL.
+The script runs `sam build`, `sam deploy` (CloudFormation via SAM), syncs `dist/` to S3, invalidates the CloudFront cache, and prints the public website URL.
+
+Requires AWS SAM CLI: https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html
 
 ## Game Flow
 
