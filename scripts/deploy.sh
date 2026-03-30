@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Golden Honmoon Math Game — S3 + CloudFront deploy script
+# Golden Honmoon Math Game — SAM build + deploy script
 # Usage: ./scripts/deploy.sh --bucket <bucket-name> [--region <region>]
 #
 # Requirements:
+#   - AWS SAM CLI installed (https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html)
 #   - AWS CLI v2 configured with appropriate credentials
 #   - Node.js + npm installed
 
@@ -40,13 +41,20 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-echo "==> Deploying CloudFormation stack: $STACK_NAME"
-aws cloudformation deploy \
+echo "==> Building SAM template"
+sam build \
+  --template-file "$REPO_ROOT/infra/template.yaml" \
+  --build-dir "$REPO_ROOT/.aws-sam/build"
+
+echo "==> Deploying SAM stack: $STACK_NAME"
+sam deploy \
+  --template-file "$REPO_ROOT/.aws-sam/build/template.yaml" \
   --stack-name "$STACK_NAME" \
-  --template-file "$REPO_ROOT/infra/s3-website.yaml" \
-  --parameter-overrides BucketName="$BUCKET_NAME" \
   --region "$REGION" \
-  --no-fail-on-empty-changeset
+  --parameter-overrides BucketName="$BUCKET_NAME" \
+  --no-confirm-changeset \
+  --no-fail-on-empty-changeset \
+  --capabilities CAPABILITY_IAM
 
 echo "==> Building the app"
 cd "$REPO_ROOT"
