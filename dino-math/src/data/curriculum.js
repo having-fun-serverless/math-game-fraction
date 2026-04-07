@@ -37,9 +37,7 @@ function choice(text, answer, wrongs, explanation) {
 }
 
 function maybeChoice(text, answer, wrongs, explanation) {
-  return Math.random() < 0.35
-    ? choice(text, answer, wrongs, explanation)
-    : typed(text, answer, explanation);
+  return choice(text, answer, wrongs, explanation);
 }
 
 // Simplify fraction, return "n/d" string
@@ -75,9 +73,9 @@ function genT1() {
       frac(n,d), [frac(d,n), frac(n+1,d), frac(n,d+1)],
       `מחלקים ${n} ב-${d}: כל אחד מקבל ${n}/${d}. המונה הוא מה שמחלקים, המכנה הוא מספר החלקים.`
     )},
-    () => { const n = r(2,9), d = r(n+1,12); return typed(
+    () => { const n = r(2,9), d = r(n+1,12); return choice(
       `כתוב את השבר המתאים: ${n} ${pick(foods)} חולקו בחלקים שווים בין ${d} ${pick(people)}.`,
-      frac(n,d),
+      frac(n,d), [frac(d,n), frac(n+1,d), frac(n,d+1)],
       `${n} ÷ ${d} = ${n}/${d}. חלוקה שווה של ${n} שלמים ל-${d} חלקים.`
     )},
     () => { const n = r(1,6), d = r(n+1,10); const p = pick(parts); return choice(
@@ -90,9 +88,9 @@ function genT1() {
       frac(n,d), [frac(d,n), frac(n,d+1), frac(n+1,d+1)],
       `${n} חלקים מתוך ${d} = ${n}/${d}.`
     )},
-    () => { const hours = r(1,23); return typed(
+    () => { const hours = r(1,23); return choice(
       `יממה מחולקת ל-24 שעות. איזה חלק מהיממה הוא ${hours} שעות?`,
-      frac(hours,24),
+      frac(hours,24), [frac(hours+1,24), frac(Math.max(1,hours-1),24), frac(hours,12)],
       `${hours} מתוך 24 = ${frac(hours,24)}.`
     )},
   ];
@@ -111,9 +109,9 @@ function genT2() {
       )},
     () => { const d = pick([2,3,4,5,6,7]); const w = r(1,5); const n = r(1,d-1);
       const tot = w*d+n;
-      return typed(
+      return choice(
         `כתוב כשבר מדומה: ${mixed(w,n,d)} = ?/${d}`,
-        tot,
+        tot, [tot+1, Math.max(1,tot-1), w*d].filter(x=>x!==tot),
         `${w} × ${d} + ${n} = ${tot}. לכן ${mixed(w,n,d)} = ${tot}/${d}.`
       )},
     () => { const d = pick([3,4,5,6,7,8]); const w = r(1,5); const n = r(1,d-1);
@@ -182,7 +180,8 @@ function genT4() {
     (w2,n,d,ans,ansStr) => maybeChoice(`אורך המסלול ${w2} ק"מ. רצנו ${n}/${d} ממנו. כמה ק"מ רצנו?`, ansStr,
       [String(w2-ans), frac(n,d+1), String(ans+1)].filter(x=>x!==ansStr),
       `${n}/${d} × ${w2} = ${ansStr} ק"מ.`),
-    (w2,n,d,ans,ansStr) => typed(`חשב: ${w2} × ${n}/${d}`, ansStr,
+    (w2,n,d,ans,ansStr) => choice(`חשב: ${w2} × ${n}/${d}`, ansStr,
+      [String(w2*n), frac(n,d*w2), String(parseFloat(ansStr)+1)].filter(x=>x!==ansStr),
       `${w2} × ${n}/${d} = ${w2*n}/${d} = ${ansStr}.`),
   ];
   const d = pick([2,3,4,5,6,7,8]);
@@ -738,9 +737,10 @@ function genT30() {
       `טווח = ${Math.max(...nums)} − ${Math.min(...nums)} = ${range}.`
     );
   } else {
-    return typed(
+    return choice(
       `${ctx}: ${nums.join(', ')}. מה הסכום?`,
-      sum, `מחברים את כל הנתונים: ${nums.join(' + ')} = ${sum}.`
+      sum, [sum+1, Math.max(1,sum-1), sum+mean].filter(x=>x!==sum),
+      `מחברים את כל הנתונים: ${nums.join(' + ')} = ${sum}.`
     );
   }
 }
