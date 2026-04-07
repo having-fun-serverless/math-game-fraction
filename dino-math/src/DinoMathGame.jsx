@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import audio from './audio/DinoAudio';
 import { allTopics, BOOKS } from './data/curriculum';
-import { obstacleById } from './data/obstacles';
+import { obstacleById, OBSTACLES } from './data/obstacles';
 import MenuScreen from './screens/MenuScreen';
 import RunScreen from './screens/RunScreen';
 import TopicCompleteScreen from './screens/TopicCompleteScreen';
@@ -13,6 +13,29 @@ const SCENE_W = 680;
 const PAUSE_X = 240;
 const OBSTACLE_SPEED = 5;
 const TICK_MS = 16;
+const DINO_X = 80;
+const GROUND_BOTTOM = 30;
+const DANCE_SEQ = ['jump','run','duck','run','jump','duck','run','jump','run','duck','run'];
+
+function checkManualCollision(dinoState, obstacles) {
+  const dinoW = dinoState === 'duck' ? 80 : 60;
+  const dinoH = dinoState === 'duck' ? 40 : 60;
+  const dinoBottom = dinoState === 'jump' ? GROUND_BOTTOM + 110 : GROUND_BOTTOM;
+  const dinoTop = dinoBottom + dinoH;
+  const dinoLeft = DINO_X + 10;
+  const dinoRight = DINO_X + dinoW - 10;
+  for (const o of obstacles) {
+    const obsBottom = o.dodge === 'duck' ? GROUND_BOTTOM + 42 : GROUND_BOTTOM - 2;
+    const obsTop = obsBottom + o.height;
+    const obsLeft = o.x + 6;
+    const obsRight = o.x + o.width - 6;
+    if (dinoLeft < obsRight && dinoRight > obsLeft &&
+        dinoBottom < obsTop && dinoTop > obsBottom) {
+      return true;
+    }
+  }
+  return false;
+}
 
 function parseAnswer(s) {
   s = String(s).trim().replace(',', '.');
@@ -36,7 +59,9 @@ function nextTopicAfter(id) {
 }
 
 export default function DinoMathGame() {
-  const [screen, setScreen] = useState('menu');
+  const [screen, setScreen] = useState('nameEntry');
+  const [playerName, setPlayerName] = useState('');
+  const [nameInput, setNameInput] = useState('');
   const [topic, setTopic] = useState(null);
   const [phase, setPhase] = useState('approach');
   const [obstacleX, setObstacleX] = useState(SCENE_W + 60);
@@ -51,6 +76,8 @@ export default function DinoMathGame() {
   const [runFrame, setRunFrame] = useState(0);
   const [muted, setMuted] = useState(false);
   const [audioStarted, setAudioStarted] = useState(false);
+  const [manualObstacles, setManualObstacles] = useState([]);
+  const [dinoFlickering, setDinoFlickering] = useState(false);
 
   const obstacleXRef = useRef(SCENE_W + 60);
   const phaseRef = useRef('approach');
@@ -62,6 +89,14 @@ export default function DinoMathGame() {
   const frameTickRef = useRef(null);
   const manualTimerRef = useRef(null);
   const dodgeTimerRef = useRef(null);
+  const spawnTimerRef = useRef(null);
+  const danceTimerRef = useRef(null);
+  const danceFrameRef = useRef(null);
+  const manualObstaclesRef = useRef([]);
+  const manualObstacleKeyRef = useRef(0);
+  const lastDodgeTypeRef = useRef(null);
+  const dinoStateRef = useRef('run');
+  const dinoFlickeringRef = useRef(false);
 
   const ensureAudio = () => {
     if (!audioStarted) { audio.init(); setAudioStarted(true); }
@@ -75,6 +110,20 @@ export default function DinoMathGame() {
     stopTick();
     tickRef.current = setInterval(() => {
       const ph = phaseRef.current;
+      if (ph === 'manualPlay') {
+        const updated = manualObstaclesRef.current
+          .map(o => ({ ...o, x: o.x - OBSTACLE_SPEED }))
+          .filter(o => o.x > -120);
+        manualObstaclesRef.current = updated;
+        setManualObstacles([...updated]);
+        if (!dinoFlickeringRef.current && checkManualCollision(dinoStateRef.current, updated)) {
+          audio.playHit();
+          dinoFlickeringRef.current = true;
+          setDinoFlickering(true);
+          setTimeout(() => { dinoFlickeringRef.current = false; setDinoFlickering(false); }, 800);
+        }
+        return;
+      }
       if (ph !== 'approach' && ph !== 'dodge') return;
       obstacleXRef.current -= OBSTACLE_SPEED;
       setObstacleX(obstacleXRef.current);
@@ -103,10 +152,14 @@ export default function DinoMathGame() {
   const endManualPlay = useCallback(() => {
     audio.stopChiptune();
     if (manualTimerRef.current) { clearInterval(manualTimerRef.current); manualTimerRef.current = null; }
+    if (spawnTimerRef.current) { clearInterval(spawnTimerRef.current); spawnTimerRef.current = null; }
+    manualObstaclesRef.current = [];
+    setManualObstacles([]);
     obstacleXRef.current = SCENE_W + 60;
     setObstacleX(SCENE_W + 60);
     phaseRef.current = 'approach';
     setPhase('approach');
+    dinoStateRef.current = 'run';
     setDinoState('run');
     startTick();
   }, [startTick]);
@@ -114,22 +167,68 @@ export default function DinoMathGame() {
   const triggerManualPlay = useCallback(() => {
     phaseRef.current = 'manualPlay';
     setPhase('manualPlay');
+    dinoStateRef.current = 'run';
     setDinoState('run');
     setManualTimeLeft(MANUAL_DURATION);
+    manualObstaclesRef.current = [];
+    setManualObstacles([]);
+    lastDodgeTypeRef.current = null;
     audio.startChiptune();
+    startTick();
+
+    const obstacleIds = Object.keys(OBSTACLES);
+    const spawnOne = () => {
+      // Alternate dodge type so player uses both jump and duck
+      const last = lastDodgeTypeRef.current;
+      const candidates = obstacleIds.filter(id => last ? OBSTACLES[id].dodge !== last : true);
+      const pool = candidates.length ? candidates : obstacleIds;
+      const id = pool[Math.floor(Math.random() * pool.length)];
+      const obs = OBSTACLES[id];
+      lastDodgeTypeRef.current = obs.dodge;
+      const key = manualObstacleKeyRef.current++;
+      manualObstaclesRef.current = [
+        ...manualObstaclesRef.current,
+        { key, id, x: SCENE_W + 60, dodge: obs.dodge, width: obs.width, height: obs.height },
+      ];
+      setManualObstacles([...manualObstaclesRef.current]);
+    };
+
+    spawnOne(); // immediate first obstacle
+    spawnTimerRef.current = setInterval(spawnOne, 1800);
+
     let left = MANUAL_DURATION;
     manualTimerRef.current = setInterval(() => {
       left -= 1;
       setManualTimeLeft(left);
       if (left <= 0) endManualPlay();
     }, 1000);
-  }, [endManualPlay]);
+  }, [endManualPlay, startTick]);
+
+  const startDance = useCallback(() => {
+    audio.playTopicComplete();
+    stopTick();
+    phaseRef.current = 'dancing';
+    setPhase('dancing');
+    startRunFrames();
+    let danceIdx = 0;
+    danceFrameRef.current = setInterval(() => {
+      const s = DANCE_SEQ[danceIdx % DANCE_SEQ.length];
+      dinoStateRef.current = s;
+      setDinoState(s);
+      danceIdx++;
+    }, 350);
+    danceTimerRef.current = setTimeout(() => {
+      if (danceFrameRef.current) { clearInterval(danceFrameRef.current); danceFrameRef.current = null; }
+      stopRunFrames();
+      dinoStateRef.current = 'run';
+      setDinoState('run');
+      setScreen('topicComplete');
+    }, 5000);
+  }, [stopTick, startRunFrames, stopRunFrames]);
 
   const advanceToNext = useCallback((nextIdx, newManualCounter, currentTopic) => {
     if (nextIdx >= QPL) {
-      audio.playTopicComplete();
-      stopTick(); stopRunFrames();
-      setScreen('topicComplete');
+      startDance();
       return;
     }
     questionIdxRef.current = nextIdx;
@@ -145,7 +244,7 @@ export default function DinoMathGame() {
       setPhase('approach');
       startTick();
     }
-  }, [startTick, stopTick, stopRunFrames, triggerManualPlay]);
+  }, [startTick, stopTick, stopRunFrames, triggerManualPlay, startDance]);
 
   const handleAnswer = useCallback((userAnswer) => {
     if (phaseRef.current !== 'question') return;
@@ -205,16 +304,18 @@ export default function DinoMathGame() {
 
   const handleManualJump = useCallback(() => {
     if (phaseRef.current !== 'manualPlay') return;
+    dinoStateRef.current = 'jump';
     setDinoState('jump');
     audio.playJump();
-    setTimeout(() => setDinoState('run'), 600);
+    setTimeout(() => { dinoStateRef.current = 'run'; setDinoState('run'); }, 600);
   }, []);
 
   const handleManualDuck = useCallback(() => {
     if (phaseRef.current !== 'manualPlay') return;
+    dinoStateRef.current = 'duck';
     setDinoState('duck');
     audio.playDuck();
-    setTimeout(() => setDinoState('run'), 400);
+    setTimeout(() => { dinoStateRef.current = 'run'; setDinoState('run'); }, 400);
   }, []);
 
   const startTopic = useCallback((t) => {
@@ -246,6 +347,11 @@ export default function DinoMathGame() {
     stopTick(); stopRunFrames(); audio.stopChiptune();
     if (manualTimerRef.current) { clearInterval(manualTimerRef.current); manualTimerRef.current = null; }
     if (dodgeTimerRef.current) { clearTimeout(dodgeTimerRef.current); dodgeTimerRef.current = null; }
+    if (spawnTimerRef.current) { clearInterval(spawnTimerRef.current); spawnTimerRef.current = null; }
+    if (danceTimerRef.current) { clearTimeout(danceTimerRef.current); danceTimerRef.current = null; }
+    if (danceFrameRef.current) { clearInterval(danceFrameRef.current); danceFrameRef.current = null; }
+    manualObstaclesRef.current = [];
+    setManualObstacles([]);
     setScreen('menu');
   }, [stopTick, stopRunFrames]);
 
@@ -259,32 +365,75 @@ export default function DinoMathGame() {
     stopTick(); stopRunFrames(); audio.stopChiptune();
     if (manualTimerRef.current) clearInterval(manualTimerRef.current);
     if (dodgeTimerRef.current) clearTimeout(dodgeTimerRef.current);
+    if (spawnTimerRef.current) clearInterval(spawnTimerRef.current);
+    if (danceTimerRef.current) clearTimeout(danceTimerRef.current);
+    if (danceFrameRef.current) clearInterval(danceFrameRef.current);
   }, [stopTick, stopRunFrames]);
 
   const manualCountdown = MANUAL_EVERY - (manualCounter % MANUAL_EVERY);
   const nextT = topic ? nextTopicAfter(topic.id) : null;
 
+  const confirmName = () => {
+    setPlayerName(nameInput.trim());
+    setScreen('menu');
+  };
+
   return (
     <div dir="rtl" style={{
       minHeight:'100vh',
-      background: screen==='menu'
+      background: screen==='menu' || screen==='nameEntry'
         ? 'linear-gradient(160deg,#e8f5e9 0%,#e3f2fd 100%)'
         : 'linear-gradient(180deg,#dbeafe 0%,#f0fdf4 100%)',
       fontFamily:"'Heebo','Secular One',sans-serif",
     }}>
-      {screen === 'running' && (
-        <button onClick={()=>{const m=!muted;setMuted(m);audio.setMuted(m);}} style={{
-          position:'fixed', top:12, left:12, zIndex:100,
-          background:'rgba(255,255,255,0.85)', border:'1px solid #ddd',
-          borderRadius:10, padding:'6px 10px', cursor:'pointer', fontSize:18 }}>
-          {muted?'🔇':'🔊'}
-        </button>
+      {screen === 'nameEntry' && (
+        <div style={{
+          minHeight:'100vh', display:'flex', flexDirection:'column',
+          alignItems:'center', justifyContent:'center', padding:24,
+        }}>
+          <div style={{ fontSize:80, marginBottom:12 }}>🦖</div>
+          <h1 style={{ fontSize:30, fontWeight:900, margin:'0 0 8px',
+            fontFamily:"'Secular One',sans-serif",
+            background:'linear-gradient(135deg,#2f9e44,#1c7ed6)',
+            WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>
+            דינו מתמטיקה
+          </h1>
+          <p style={{ fontSize:18, color:'#555', margin:'0 0 20px' }}>מה שמך?</p>
+          <input
+            type="text" value={nameInput} autoFocus
+            onChange={e => setNameInput(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') confirmName(); }}
+            placeholder="כתוב את שמך..."
+            dir="rtl"
+            style={{ padding:'12px 20px', fontSize:20, fontWeight:700,
+              borderRadius:12, border:'2.5px solid #2f9e44', outline:'none',
+              textAlign:'center', marginBottom:16, width:240 }} />
+          <div style={{ display:'flex', gap:10 }}>
+            <button onClick={confirmName} style={{
+              background:'linear-gradient(135deg,#2f9e44,#40c057)', color:'white',
+              border:'none', borderRadius:14, padding:'14px 40px',
+              fontSize:18, fontWeight:800, cursor:'pointer' }}>
+              בוא נשחק! ▶
+            </button>
+            <button onClick={() => setScreen('menu')} style={{
+              background:'white', color:'#888', border:'2px solid #dee2e6',
+              borderRadius:14, padding:'14px 20px', fontSize:16, cursor:'pointer' }}>
+              דלג
+            </button>
+          </div>
+        </div>
       )}
 
       {screen === 'menu' && <MenuScreen onStartTopic={startTopic} />}
 
       {screen === 'running' && topic && (
         <div style={{ padding:'12px 12px 24px', maxWidth:SCENE_W+24, margin:'0 auto' }}>
+          <button onClick={()=>{const m=!muted;setMuted(m);audio.setMuted(m);}} style={{
+            position:'fixed', top:12, left:12, zIndex:100,
+            background:'rgba(255,255,255,0.85)', border:'1px solid #ddd',
+            borderRadius:10, padding:'6px 10px', cursor:'pointer', fontSize:18 }}>
+            {muted?'🔇':'🔊'}
+          </button>
           <button onClick={backToMenu} style={{
             background:'rgba(255,255,255,0.7)', border:'1px solid #ddd', borderRadius:8,
             padding:'4px 12px', cursor:'pointer', fontSize:13, color:'#555', marginBottom:8 }}>
@@ -292,9 +441,11 @@ export default function DinoMathGame() {
           </button>
           <RunScreen
             topic={topic} phase={phase} obstacleX={obstacleX} dinoState={dinoState}
+            dinoFlickering={dinoFlickering} playerName={playerName}
             question={question} wasCorrect={wasCorrect} lastUserAnswer={lastUserAnswer}
             questionIdx={questionIdx} total={QPL} correctCount={correctCount}
             manualTimeLeft={manualTimeLeft} manualCountdown={manualCountdown}
+            manualObstacles={manualObstacles}
             onAnswer={handleAnswer} onContinue={handleContinue}
             onManualEnd={endManualPlay} onManualJump={handleManualJump}
             onManualDuck={handleManualDuck} runFrame={runFrame} />
@@ -304,6 +455,7 @@ export default function DinoMathGame() {
       {screen === 'topicComplete' && topic && (
         <TopicCompleteScreen
           topicTitle={topic.title} correctCount={correctCount} total={QPL}
+          playerName={playerName}
           hasNextTopic={!!nextT}
           onNextTopic={() => nextT && startTopic(nextT)}
           onMenu={() => setScreen('menu')} />

@@ -1,9 +1,10 @@
-export default function Dino({ state = 'run', frame = 0 }) {
+export default function Dino({ state = 'run', frame = 0, flickering = false }) {
   const isDuck = state === 'duck';
   const isHit  = state === 'hit';
   const W = isDuck ? 80 : 60;
   const H = isDuck ? 40 : 60;
   const green = '#4ade80', dark = '#16a34a', hitFilter = 'sepia(1) saturate(4) hue-rotate(-30deg) brightness(1.2)';
+  const flickerStyle = flickering ? { animation: 'flicker 0.12s step-start infinite' } : {};
 
   const Eye = () => (
     <g>
@@ -15,7 +16,7 @@ export default function Dino({ state = 'run', frame = 0 }) {
 
   if (isDuck) return (
     <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}
-      style={{ display:'block', filter: isHit?hitFilter:'none' }} aria-label="דינוזאור מתכופף">
+      style={{ display:'block', filter: isHit?hitFilter:'none', ...flickerStyle }} aria-label="דינוזאור מתכופף">
       <ellipse cx={38} cy={26} rx={34} ry={16} fill={green} />
       <ellipse cx={38} cy={28} rx={22} ry={9} fill="#86efac" opacity={0.5} />
       <ellipse cx={65} cy={16} rx={16} ry={12} fill={green} />
@@ -51,7 +52,7 @@ export default function Dino({ state = 'run', frame = 0 }) {
 
   return (
     <svg width={W} height={H} viewBox="0 0 60 60"
-      style={{ display:'block', filter: isHit?hitFilter:'none' }} aria-label="דינוזאור">
+      style={{ display:'block', filter: isHit?hitFilter:'none', ...flickerStyle }} aria-label="דינוזאור">
       <Leg l={legA} /><Leg l={legB} />
       <path d="M 18 40 Q 4 44 2 52 Q 6 48 16 46 Z" fill={dark} />
       <ellipse cx={28} cy={38} rx={16} ry={14} fill={green} />

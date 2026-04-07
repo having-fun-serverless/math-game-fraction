@@ -28,3 +28,12 @@ input[type="number"] { -moz-appearance: textfield; }
   25%     { transform: translateX(-6px); }
   75%     { transform: translateX(6px); }
 }
+@keyframes flicker {
+  0%,100% { opacity: 1; }
+  50%     { opacity: 0; }
+}
+@keyframes danceBounce {
+  0%,100% { transform: translateY(0) rotate(0deg); }
+  25%     { transform: translateY(-8px) rotate(-8deg); }
+  75%     { transform: translateY(-4px) rotate(8deg); }
+}

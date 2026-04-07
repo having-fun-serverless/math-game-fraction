@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import MathText from './MathText';
 
 export default function QuestionCard({ question, phase, onAnswer, onContinue, wasCorrect, lastUserAnswer }) {
   const [input, setInput] = useState('');
@@ -24,8 +25,8 @@ export default function QuestionCard({ question, phase, onAnswer, onContinue, wa
       border:`2.5px solid ${phase==='explain'?(wasCorrect?'#4ade80':'#ff6b6b'):'#e9ecef'}`,
     }}>
       <div style={{ fontSize:17, fontWeight:700, color:'#1a1a2e', marginBottom:14,
-        lineHeight:1.5, textAlign:'right' }}>
-        {question.text}
+        lineHeight:1.7, textAlign:'right' }}>
+        <MathText text={question.text} />
       </div>
 
       {phase === 'question' && (
@@ -51,10 +52,11 @@ export default function QuestionCard({ question, phase, onAnswer, onContinue, wa
                   cursor:choiceSelected?'default':'pointer',
                   border:`2px solid ${choiceSelected===c?'#74c0fc':'#dee2e6'}`,
                   background:choiceSelected===c?'#e7f5ff':'linear-gradient(135deg,#f8f9fa,#fff)',
-                  color:'#333', direction:'ltr', transition:'transform 0.1s' }}
+                  color:'#333', transition:'transform 0.1s',
+                  display:'flex', alignItems:'center', justifyContent:'center' }}
                 onMouseEnter={e=>{if(!choiceSelected)e.currentTarget.style.transform='scale(1.04)'}}
                 onMouseLeave={e=>{e.currentTarget.style.transform='scale(1)'}}>
-                {c}
+                <MathText text={c} />
               </button>
             ))}
           </div>
@@ -73,22 +75,22 @@ export default function QuestionCard({ question, phase, onAnswer, onContinue, wa
               {!wasCorrect && (
                 <div style={{ fontSize:14, color:'#555', marginTop:2 }}>
                   תשובתך:{' '}
-                  <span style={{ direction:'ltr', fontFamily:'monospace', color:'#e03131' }}>
-                    {lastUserAnswer}
+                  <span style={{ color:'#e03131', fontWeight:700 }}>
+                    <MathText text={lastUserAnswer} />
                   </span>
                   {'  •  '}
                   התשובה הנכונה:{' '}
-                  <span style={{ direction:'ltr', fontFamily:'monospace', fontWeight:900, color:'#2f9e44' }}>
-                    {question.answer}
+                  <span style={{ fontWeight:900, color:'#2f9e44' }}>
+                    <MathText text={question.answer} />
                   </span>
                 </div>
               )}
             </div>
           </div>
           <div style={{ background:'#f8f9fa', borderRadius:10, padding:'10px 14px',
-            marginBottom:14, fontSize:14, color:'#444', lineHeight:1.6 }}>
+            marginBottom:14, fontSize:14, color:'#444', lineHeight:1.8 }}>
             <span style={{ fontWeight:700, color:'#1c7ed6' }}>הסבר: </span>
-            {question.explanation}
+            <MathText text={question.explanation} />
           </div>
           <button onClick={onContinue} style={{
             width:'100%', padding:12, fontSize:16, fontWeight:800, borderRadius:12,

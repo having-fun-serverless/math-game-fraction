@@ -1,4 +1,4 @@
-export default function TopicCompleteScreen({ topicTitle, correctCount, total, onMenu, onNextTopic, hasNextTopic }) {
+export default function TopicCompleteScreen({ topicTitle, correctCount, total, onMenu, onNextTopic, hasNextTopic, playerName }) {
   const passed = correctCount >= Math.ceil(total * 0.7);
   const stars = correctCount >= total ? 3 : correctCount >= Math.ceil(total * 0.85) ? 2 : passed ? 1 : 0;
 
@@ -12,7 +12,7 @@ export default function TopicCompleteScreen({ topicTitle, correctCount, total, o
       <div style={{ fontSize:80, marginBottom:12 }}>{passed?'🏆':'💪'}</div>
       <h2 style={{ fontSize:28, fontWeight:900, margin:'0 0 6px',
         fontFamily:"'Secular One',sans-serif", color:passed?'#2f9e44':'#e67700' }}>
-        {passed?'כל הכבוד!':'כמעט!'}
+        {passed ? (playerName ? `כל הכבוד ${playerName}!` : 'כל הכבוד!') : 'כמעט!'}
       </h2>
       <p style={{ fontSize:15, color:'#666', margin:'0 0 16px' }}>{topicTitle}</p>
       <div style={{ fontSize:40, marginBottom:16, letterSpacing:4 }}>

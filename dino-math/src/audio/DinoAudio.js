@@ -75,6 +75,19 @@ class DinoAudio {
       this._tone(f, t + i * 0.12, 0.3, 'sawtooth', 0.1));
   }
 
+  playHit() {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(220, t);
+    o.frequency.exponentialRampToValueAtTime(55, t + 0.18);
+    g.gain.setValueAtTime(0.18, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+    o.connect(g).connect(this.masterGain);
+    o.start(t); o.stop(t + 0.22);
+  }
+
   playTopicComplete() {
     if (!this.ctx) return;
     const t = this.ctx.currentTime;

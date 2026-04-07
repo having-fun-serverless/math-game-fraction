@@ -13,10 +13,10 @@ const DINO_X = 80;
 const GROUND_BOTTOM = 30; // height of ground strip
 
 export default function RunScreen({
-  topic, phase, obstacleX, dinoState,
+  topic, phase, obstacleX, dinoState, dinoFlickering, playerName,
   question, wasCorrect, lastUserAnswer,
   questionIdx, total, correctCount,
-  manualTimeLeft, manualCountdown,
+  manualTimeLeft, manualCountdown, manualObstacles,
   onAnswer, onContinue, onManualEnd,
   onManualJump, onManualDuck, runFrame,
 }) {
@@ -38,7 +38,7 @@ export default function RunScreen({
   // Obstacle bottom offset: ducking obstacles float higher
   const obsBottom = obs.dodge === 'duck' ? GROUND_BOTTOM + 42 : GROUND_BOTTOM - 2;
 
-  const running = phase === 'approach' || phase === 'dodge' || phase === 'manualPlay';
+  const running = phase === 'approach' || phase === 'dodge' || phase === 'manualPlay' || phase === 'dancing';
 
   return (
     <div style={{ width:'100%', maxWidth:SCENE_W, margin:'0 auto',
@@ -74,7 +74,7 @@ export default function RunScreen({
             ? 'bottom 0.5s cubic-bezier(0.25,0.46,0.45,0.94)'
             : 'bottom 0.2s ease',
         }}>
-          <Dino state={dinoState} frame={runFrame} />
+          <Dino state={dinoState} frame={runFrame} flickering={dinoFlickering} />
         </div>
 
         {/* Obstacle (hidden during manual play) */}
@@ -88,9 +88,42 @@ export default function RunScreen({
           </div>
         )}
 
+        {/* Manual play obstacles */}
+        {phase === 'manualPlay' && (manualObstacles || []).map(o => (
+          <div key={o.key} style={{
+            position:'absolute',
+            left: o.x,
+            bottom: o.dodge === 'duck' ? GROUND_BOTTOM + 42 : GROUND_BOTTOM - 2,
+          }}>
+            <Obstacle id={o.id} width={o.width} height={o.height} />
+          </div>
+        ))}
+
         {/* Manual play overlay */}
         {phase === 'manualPlay' && (
           <ManualBanner timeLeft={manualTimeLeft} totalTime={20} />
+        )}
+
+        {/* Dance celebration overlay */}
+        {phase === 'dancing' && (
+          <div style={{
+            position:'absolute', inset:0,
+            background:'rgba(255,255,255,0.75)',
+            display:'flex', flexDirection:'column',
+            alignItems:'center', justifyContent:'center',
+            gap:6, borderRadius:16,
+          }}>
+            <div style={{ fontSize:36, animation:'danceBounce 0.7s ease-in-out infinite' }}>
+              🎉
+            </div>
+            <div style={{ fontSize:22, fontWeight:900, color:'#2f9e44',
+              textShadow:'0 1px 4px rgba(0,0,0,0.15)' }}>
+              {playerName ? `כל הכבוד ${playerName}!` : 'כל הכבוד!'}
+            </div>
+            <div style={{ fontSize:28, animation:'danceBounce 0.7s ease-in-out infinite 0.2s' }}>
+              🦖
+            </div>
+          </div>
         )}
 
         {/* Manual touch buttons */}
